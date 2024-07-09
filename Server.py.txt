@@ -1,0 +1,38 @@
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import unquote
+
+variables = {}
+
+class Handler(BaseHTTPRequestHandler):
+
+    def __init__(self, request, client_address, server) -> None:
+        self.output = b''
+        super().__init__(request, client_address, server)
+
+    def do_GET(self):
+        global variables
+        self.send_response_only(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        q = unquote(self.path).split('/')
+        if len(q) < 3: return
+        q = q[1:]
+        if q[0] == 'get':
+            self.output += str(variables.get(q[1], '')).encode()
+            self.send_header('Content-Length', str(len(self.output)))
+        elif q[0] == 'set':
+            if len(q) < 3:
+                return
+            variables[q[1]] = q[2]
+            self.output = b'okay'
+            self.send_header('Content-Length', '4')
+        self.end_headers()
+        self.wfile.write(self.output)
+
+class Server(ThreadingHTTPServer):
+
+    def __init__(self, bind_address="localhost", bind_port=80) -> None:
+        super().__init__((bind_address, bind_port), Handler)
+        print(f"Server started at ({bind_address}:{bind_port}).")
+        self.serve_forever()
+
+Server()
